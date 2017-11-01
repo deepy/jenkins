@@ -103,6 +103,18 @@ THE SOFTWARE.
       </exclusions>
     </dependency>
 
+    <dependency>
+      <groupId>io.fabric8</groupId>
+      <artifactId>kubernetes-client</artifactId>
+      <version>3.0.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-validator</artifactId>
+      <version>5.4.1.Final</version>
+    </dependency>
+
+
     <dependency> <!-- for compatibility only; all new code should use JNR -->
       <groupId>org.jruby.ext.posix</groupId>
       <artifactId>jna-posix</artifactId>

@@ -1336,7 +1336,7 @@ public class Fingerprint implements ModelObject, Saveable {
      * The file we save our configuration.
      */
     private static @Nonnull XmlFile getConfigFile(@Nonnull File file) {
-        return new XmlFile(XSTREAM,file);
+        return XmlFile.createConfigXmlFile(file);
     }
 
     /**

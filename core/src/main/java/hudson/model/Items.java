@@ -377,7 +377,7 @@ public class Items {
      * The file we save our configuration.
      */
     public static XmlFile getConfigFile(File dir) {
-        return new XmlFile(XSTREAM,new File(dir,"config.xml"));
+        return XmlFile.createItemFile(XSTREAM,new File(dir,"config.xml"));
     }
 
     /**

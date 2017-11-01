@@ -30,11 +30,24 @@ import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.StreamException;
 import com.thoughtworks.xstream.io.xml.Xpp3Driver;
 import hudson.diagnosis.OldDataMonitor;
+import hudson.kubernetes.Build;
+import hudson.kubernetes.BuildConfig;
+import hudson.kubernetes.BuildConfigList;
+import hudson.kubernetes.BuildList;
+import hudson.kubernetes.ClientHelper;
+import hudson.kubernetes.DoneableBuild;
+import hudson.kubernetes.DoneableBuildConfig;
+import hudson.kubernetes.XmlKubernetesBuild;
+import hudson.kubernetes.XmlKubernetesBuildConfig;
+import hudson.kubernetes.XmlKubernetesConfigFile;
 import hudson.model.Descriptor;
 import hudson.util.AtomicFileWriter;
 import hudson.util.XStream2;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import org.apache.commons.io.IOUtils;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.Locator;
@@ -51,15 +64,16 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Serializable;
-import java.io.Writer;
 import java.io.StringWriter;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.io.IOUtils;
 
 /**
  * Represents an XML data file that Jenkins uses as a data file.
@@ -116,7 +130,8 @@ import org.apache.commons.io.IOUtils;
  * @see <a href="https://wiki.jenkins-ci.org/display/JENKINS/Architecture#Architecture-Persistence">Architecture » Persistence</a>
  * @author Kohsuke Kawaguchi
  */
-public final class XmlFile {
+public class XmlFile {
+
     private final XStream xs;
     private final File file;
     private static final Map<Object, Void> beingWritten = Collections.synchronizedMap(new IdentityHashMap<>());
@@ -146,7 +161,7 @@ public final class XmlFile {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine("Reading "+file);
         }
-        try (InputStream in = new BufferedInputStream(Files.newInputStream(file.toPath()))) {
+        try (InputStream in = createInputStream()) {
             return xs.fromXML(in);
         } catch (XStreamException | Error | InvalidPathException e) {
             throw new IOException("Unable to read "+file,e);
@@ -162,12 +177,16 @@ public final class XmlFile {
      */
     public Object unmarshal( Object o ) throws IOException {
 
-        try (InputStream in = new BufferedInputStream(Files.newInputStream(file.toPath()))) {
+        try (InputStream in = createInputStream()) {
             // TODO: expose XStream the driver from XStream
             return xs.unmarshal(DEFAULT_DRIVER.createReader(in), o);
         } catch (XStreamException | Error | InvalidPathException e) {
             throw new IOException("Unable to read "+file,e);
         }
+    }
+
+    protected BufferedInputStream createInputStream() throws IOException {
+        return new BufferedInputStream(Files.newInputStream(file.toPath()));
     }
 
     public void write( Object o ) throws IOException {
@@ -350,4 +369,58 @@ public final class XmlFile {
     static {
         JAXP.setNamespaceAware(true);
     }
+
+    private static final KubernetesClient kubernetesClient = new DefaultKubernetesClient();
+
+    private static NonNamespaceOperation<BuildConfig, BuildConfigList, DoneableBuildConfig, Resource<BuildConfig, DoneableBuildConfig>> buildConfigClient;
+    private static NonNamespaceOperation<Build, BuildList, DoneableBuild, Resource<Build, DoneableBuild>> buildClient;
+
+    // TODO use configuration to decide if we should use files or kubernetes...
+    protected static boolean useKubernetes = true;
+
+    public static XmlFile createItemFile(XStream xstream, File file) {
+        if (useKubernetes) {
+            String namespace = getNamespace();
+            if (buildConfigClient == null) {
+                buildConfigClient = ClientHelper.buildConfigClient(kubernetesClient, namespace);
+            }
+            return new XmlKubernetesBuildConfig(xstream, file, buildConfigClient, namespace);
+        } else {
+            return new XmlFile(xstream, file);
+        }
+    }
+
+
+    public static XmlFile createBuildFile(XStream xstream, File file) {
+        if (useKubernetes) {
+            String namespace = getNamespace();
+            if (buildClient == null) {
+                buildClient = ClientHelper.buildClient(kubernetesClient, namespace);
+            }
+            return new XmlKubernetesBuild(xstream, file, buildClient, namespace);
+        } else {
+            return new XmlFile(xstream, file);
+        }
+    }
+
+    public static XmlFile createConfigXmlFile(File file) {
+        if (useKubernetes) {
+            String namespace = getNamespace();
+            return new XmlKubernetesConfigFile( file, kubernetesClient, namespace);
+        } else {
+            return new XmlFile(file);
+        }
+    }
+
+    protected static String getNamespace() {
+        String namespace = kubernetesClient.getNamespace();
+        if (namespace == null) {
+            namespace = System.getenv("KUBERNETES_NAMESPACE");
+        }
+        if (namespace == null) {
+            namespace = "default";
+        }
+        return namespace;
+    }
+
 }

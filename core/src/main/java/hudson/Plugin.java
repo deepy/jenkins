@@ -286,8 +286,7 @@ public abstract class Plugin implements Saveable {
      * @since 1.245
      */
     protected XmlFile getConfigXml() {
-        return new XmlFile(Jenkins.XSTREAM,
-                new File(Jenkins.getInstance().getRootDir(),wrapper.getShortName()+".xml"));
+        return XmlFile.createConfigXmlFile(new File(Jenkins.getInstance().getRootDir(),wrapper.getShortName()+".xml"));
     }
 
 

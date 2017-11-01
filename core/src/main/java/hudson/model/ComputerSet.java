@@ -372,7 +372,7 @@ public final class ComputerSet extends AbstractModelObject implements Describabl
      * {@link NodeMonitor}s are persisted in this file.
      */
     private static XmlFile getConfigFile() {
-        return new XmlFile(new File(Jenkins.getInstance().getRootDir(),"nodeMonitors.xml"));
+        return XmlFile.createConfigXmlFile(new File(Jenkins.getInstance().getRootDir(),"nodeMonitors.xml"));
     }
 
     public Api getApi() {
