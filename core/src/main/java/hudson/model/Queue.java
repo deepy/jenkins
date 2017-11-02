@@ -392,7 +392,7 @@ public class Queue extends ResourceController implements Saveable {
             } else {
                 queueFile = getXMLQueueFile();
                 if (queueFile.exists()) {
-                    Object unmarshaledObj = new XmlFile(XSTREAM, queueFile).read();
+                    Object unmarshaledObj = XmlFile.createQueueConfigXmlFile(queueFile).read();
                     List items;
 
                     if (unmarshaledObj instanceof State) {
@@ -458,7 +458,7 @@ public class Queue extends ResourceController implements Saveable {
     public void save() {
         if(BulkChange.contains(this))  return;
 
-        XmlFile queueFile = new XmlFile(XSTREAM, getXMLQueueFile());
+        XmlFile queueFile = XmlFile.createQueueConfigXmlFile(getXMLQueueFile());
         lock.lock();
         try {
             // write out the queue state we want to save

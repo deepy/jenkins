@@ -78,7 +78,13 @@ public abstract class XmlKubernetesResource extends XmlFile {
         } catch (IOException e) {
             throw new RuntimeException("Cannot calculate relative path " + e, e);
         }
-        path = stripSuffix(path, "/build.xml");
+        if (path.endsWith("/build.xml")) {
+            path = stripSuffix(path, "/build.xml");
+            int idx = path.lastIndexOf("/builds/");
+            if (idx > 0) {
+                path = path.substring(0, idx) + path.substring(idx + "/builds".length());
+            }
+        }
         path = stripSuffix(path, "/config.xml");
         path = stripPrefix(path, "/jobs/");
         name = KubernetesNames.convertToKubernetesName(path, true);

@@ -38,6 +38,8 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 
+import static hudson.kubernetes.XmlKubernetesResource.stripSuffix;
+
 /**
  */
 public class XmlKubernetesConfigFile extends XmlFile {
@@ -50,8 +52,8 @@ public class XmlKubernetesConfigFile extends XmlFile {
         super(file);
         this.kubernetesClient = kubernetesClient;
         this.namespace = namespace;
-        this.key = file.getName();
-        this.name = "jenkins-config";
+        this.name = KubernetesNames.convertToKubernetesName(stripSuffix(file.getName(), ".xml"), true);
+        this.key = "xml";
     }
 
 
