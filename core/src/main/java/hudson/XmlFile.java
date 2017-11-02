@@ -32,7 +32,6 @@ import com.thoughtworks.xstream.io.xml.Xpp3Driver;
 import hudson.diagnosis.OldDataMonitor;
 import hudson.kubernetes.KuberentesXmlFileFactory;
 import hudson.model.Descriptor;
-import hudson.model.XmlFileFactory;
 import hudson.util.AtomicFileWriter;
 import hudson.util.XStream2;
 import org.apache.commons.io.IOUtils;

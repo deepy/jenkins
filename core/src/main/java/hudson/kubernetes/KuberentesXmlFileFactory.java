@@ -26,7 +26,7 @@ package hudson.kubernetes;
 import com.thoughtworks.xstream.XStream;
 import hudson.XmlFile;
 import hudson.model.TopLevelItem;
-import hudson.model.XmlFileFactory;
+import hudson.XmlFileFactory;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;

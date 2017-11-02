@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package hudson.model;
+package hudson;
 
 import com.thoughtworks.xstream.XStream;
 import hudson.XmlFile;
@@ -29,6 +29,7 @@ import hudson.XmlFile;
 import java.io.File;
 
 /**
+ * A plugable strategy so that we load or save the configuration, pipeline & run configuration
  */
 public interface XmlFileFactory {
     XmlFile createItemFile(XStream xstream, File file);

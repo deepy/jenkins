@@ -24,7 +24,6 @@
 package hudson;
 
 import com.thoughtworks.xstream.XStream;
-import hudson.model.XmlFileFactory;
 
 import java.io.File;
 
