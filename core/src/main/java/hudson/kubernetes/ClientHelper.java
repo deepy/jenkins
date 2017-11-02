@@ -38,61 +38,61 @@ import java.util.List;
 public class ClientHelper {
 
     public static String JENKINS_CRD_GROUP = "jenkins.io";
-    public static String BUILDCONFIG_CRD_NAME = "buildconfigs." + JENKINS_CRD_GROUP;
-    public static String BUILD_CRD_NAME = "builds." + JENKINS_CRD_GROUP;
+    public static String PIPELINE_CRD_NAME = "pipelines." + JENKINS_CRD_GROUP;
+    public static String RUN_CRD_NAME = "runs." + JENKINS_CRD_GROUP;
 
-    public static NonNamespaceOperation<BuildConfig, BuildConfigList, DoneableBuildConfig, Resource<BuildConfig, DoneableBuildConfig>> buildConfigClient(KubernetesClient client, String namespace) {
+    public static NonNamespaceOperation<Pipeline, PipelineList, DoneablePipeline, Resource<Pipeline, DoneablePipeline>> pipelineClient(KubernetesClient client, String namespace) {
         CustomResourceDefinitionList crds = client.customResourceDefinitions().list();
         List<CustomResourceDefinition> crdsItems = crds.getItems();
-        CustomResourceDefinition buildConfigCRD = null;
+        CustomResourceDefinition pipelineCRD = null;
         for (CustomResourceDefinition crd : crdsItems) {
             ObjectMeta metadata = crd.getMetadata();
             if (metadata != null) {
                 String name = metadata.getName();
                 System.out.println("    " + name + " => " + metadata.getSelfLink());
-                if (BUILDCONFIG_CRD_NAME.equals(name)) {
-                    buildConfigCRD = crd;
+                if (PIPELINE_CRD_NAME.equals(name)) {
+                    pipelineCRD = crd;
                 }
             }
         }
-        if (buildConfigCRD == null) {
-            buildConfigCRD = new CustomResourceDefinitionBuilder().
+        if (pipelineCRD == null) {
+            pipelineCRD = new CustomResourceDefinitionBuilder().
                     withApiVersion("apiextensions.k8s.io/v1beta1").
-                    withNewMetadata().withName(BUILDCONFIG_CRD_NAME).endMetadata().
+                    withNewMetadata().withName(PIPELINE_CRD_NAME).endMetadata().
                     withNewSpec().withGroup(JENKINS_CRD_GROUP).withVersion("v1").withScope("Namespaced").
-                    withNewNames().withKind("BuildConfig").withShortNames("bc").withPlural("buildconfigs").endNames().endSpec().
+                    withNewNames().withKind("Pipeline").withShortNames("pipeline").withPlural("pipelines").endNames().endSpec().
                     build();
 
-            client.customResourceDefinitions().create(buildConfigCRD);
+            client.customResourceDefinitions().create(pipelineCRD);
         }
-        return client.customResource(buildConfigCRD, BuildConfig.class, BuildConfigList.class, DoneableBuildConfig.class).inNamespace(namespace);
+        return client.customResource(pipelineCRD, Pipeline.class, PipelineList.class, DoneablePipeline.class).inNamespace(namespace);
     }
 
-    public static NonNamespaceOperation<Build, BuildList, DoneableBuild, Resource<Build, DoneableBuild>> buildClient(KubernetesClient client, String namespace) {
+    public static NonNamespaceOperation<Run, RunList, DoneableRun, Resource<Run, DoneableRun>> runClient(KubernetesClient client, String namespace) {
         CustomResourceDefinitionList crds = client.customResourceDefinitions().list();
         List<CustomResourceDefinition> crdsItems = crds.getItems();
-        CustomResourceDefinition buildCRD = null;
+        CustomResourceDefinition runCRD = null;
         for (CustomResourceDefinition crd : crdsItems) {
             ObjectMeta metadata = crd.getMetadata();
             if (metadata != null) {
                 String name = metadata.getName();
                 System.out.println("    " + name + " => " + metadata.getSelfLink());
-                if (BUILD_CRD_NAME.equals(name)) {
-                    buildCRD = crd;
+                if (RUN_CRD_NAME.equals(name)) {
+                    runCRD = crd;
                 }
             }
         }
-        if (buildCRD == null) {
-            buildCRD = new CustomResourceDefinitionBuilder().
+        if (runCRD == null) {
+            runCRD = new CustomResourceDefinitionBuilder().
                     withApiVersion("apiextensions.k8s.io/v1beta1").
-                    withNewMetadata().withName(BUILD_CRD_NAME).endMetadata().
+                    withNewMetadata().withName(RUN_CRD_NAME).endMetadata().
                     withNewSpec().withGroup(JENKINS_CRD_GROUP).withVersion("v1").withScope("Namespaced").
-                    withNewNames().withKind("Build").withShortNames("build").withPlural("builds").endNames().endSpec().
+                    withNewNames().withKind("Run").withShortNames("run").withPlural("runs").endNames().endSpec().
                     build();
 
-            client.customResourceDefinitions().create(buildCRD);
+            client.customResourceDefinitions().create(runCRD);
         }
-        return client.customResource(buildCRD, Build.class, BuildList.class, DoneableBuild.class).inNamespace(namespace);
+        return client.customResource(runCRD, Run.class, RunList.class, DoneableRun.class).inNamespace(namespace);
     }
 
 }

@@ -30,23 +30,11 @@ import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.StreamException;
 import com.thoughtworks.xstream.io.xml.Xpp3Driver;
 import hudson.diagnosis.OldDataMonitor;
-import hudson.kubernetes.Build;
-import hudson.kubernetes.BuildConfig;
-import hudson.kubernetes.BuildConfigList;
-import hudson.kubernetes.BuildList;
-import hudson.kubernetes.ClientHelper;
-import hudson.kubernetes.DoneableBuild;
-import hudson.kubernetes.DoneableBuildConfig;
-import hudson.kubernetes.XmlKubernetesBuild;
-import hudson.kubernetes.XmlKubernetesBuildConfig;
-import hudson.kubernetes.XmlKubernetesConfigFile;
+import hudson.kubernetes.KuberentesXmlFileFactory;
 import hudson.model.Descriptor;
+import hudson.model.XmlFileFactory;
 import hudson.util.AtomicFileWriter;
 import hudson.util.XStream2;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import org.apache.commons.io.IOUtils;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
@@ -141,11 +129,8 @@ public class XmlFile {
     private static final Logger LOGGER = Logger.getLogger(XmlFile.class.getName());
     private static final SAXParserFactory JAXP = SAXParserFactory.newInstance();
     private static final Xpp3Driver DEFAULT_DRIVER = new Xpp3Driver();
-    private static final KubernetesClient kubernetesClient = new DefaultKubernetesClient();
-    // TODO use configuration to decide if we should use files or kubernetes...
     protected static boolean useKubernetes = true;
-    private static NonNamespaceOperation<BuildConfig, BuildConfigList, DoneableBuildConfig, Resource<BuildConfig, DoneableBuildConfig>> buildConfigClient;
-    private static NonNamespaceOperation<Build, BuildList, DoneableBuild, Resource<Build, DoneableBuild>> buildClient;
+    protected static XmlFileFactory xmlFileFactory;
 
     static {
         JAXP.setNamespaceAware(true);
@@ -186,51 +171,26 @@ public class XmlFile {
     }
 
     public static XmlFile createItemFile(XStream xstream, File file) {
-        if (useKubernetes) {
-            String namespace = getNamespace();
-            if (buildConfigClient == null) {
-                buildConfigClient = ClientHelper.buildConfigClient(kubernetesClient, namespace);
-            }
-            return new XmlKubernetesBuildConfig(xstream, file, buildConfigClient, namespace);
-        } else {
-            return new XmlFile(xstream, file);
-        }
+        return getXmlFileFactory().createItemFile(xstream, file);
     }
 
     public static XmlFile createBuildFile(XStream xstream, File file) {
-        if (useKubernetes) {
-            String namespace = getNamespace();
-            if (buildClient == null) {
-                buildClient = ClientHelper.buildClient(kubernetesClient, namespace);
-            }
-            return new XmlKubernetesBuild(xstream, file, buildClient, namespace);
-        } else {
-            return new XmlFile(xstream, file);
-        }
+        return getXmlFileFactory().createRunFile(xstream, file);
     }
 
     public static XmlFile createConfigXmlFile(File file) {
-        if (useKubernetes) {
-            String namespace = getNamespace();
-            return new XmlKubernetesConfigFile(file, kubernetesClient, namespace);
-        } else {
-            return new XmlFile(file);
-        }
+        return getXmlFileFactory().createConfigXmlFile(file);
     }
 
     public static XmlFile createQueueConfigXmlFile(File file) {
-        return new XmlFile(file);
+        return getXmlFileFactory().createQueueConfigXmlFile(file);
     }
 
-    protected static String getNamespace() {
-        String namespace = kubernetesClient.getNamespace();
-        if (namespace == null) {
-            namespace = System.getenv("KUBERNETES_NAMESPACE");
+    public static XmlFileFactory getXmlFileFactory() {
+        if (xmlFileFactory == null) {
+            xmlFileFactory = useKubernetes ? new KuberentesXmlFileFactory() : new LocalXmlFileFactory();
         }
-        if (namespace == null) {
-            namespace = "default";
-        }
-        return namespace;
+        return xmlFileFactory;
     }
 
     public File getFile() {

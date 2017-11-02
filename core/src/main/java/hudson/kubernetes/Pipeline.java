@@ -23,7 +23,37 @@
  */
 package hudson.kubernetes;
 
-import io.fabric8.kubernetes.client.CustomResourceList;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.fabric8.kubernetes.client.CustomResource;
 
-public class BuildConfigList extends CustomResourceList<BuildConfig> {
+/**
+ */
+@JsonDeserialize(
+    using = JsonDeserializer.None.class
+)
+public class Pipeline extends CustomResource {
+    private PipelineSpec spec;
+
+    public Pipeline() {
+        setKind("Pipeline");
+    }
+
+    @Override
+    public String toString() {
+        return "Pipeline{" +
+                "apiVersion='" + getApiVersion() + '\'' +
+                ", metadata=" + getMetadata() +
+                ", spec=" + spec +
+                '}';
+    }
+
+
+    public PipelineSpec getSpec() {
+        return spec;
+    }
+
+    public void setSpec(PipelineSpec spec) {
+        this.spec = spec;
+    }
 }

@@ -21,37 +21,33 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package hudson.kubernetes;
+package hudson;
 
-import io.fabric8.kubernetes.api.model.KubernetesResource;
+import com.thoughtworks.xstream.XStream;
+import hudson.model.XmlFileFactory;
+
+import java.io.File;
 
 /**
  */
-public class BuildSpec implements KubernetesResource {
-    private String path;
-    private String configXml;
+public class LocalXmlFileFactory implements XmlFileFactory {
+    @Override
+    public XmlFile createItemFile(XStream xstream, File file) {
+        return new XmlFile(file);
+    }
 
     @Override
-    public String toString() {
-        return "BuildSpec{" +
-                "path='" + path + '\'' +
-                ", configXml='" + configXml + '\'' +
-                '}';
+    public XmlFile createRunFile(XStream xstream, File file) {
+        return new XmlFile(file);
     }
 
-    public String getPath() {
-        return path;
+    @Override
+    public XmlFile createConfigXmlFile(File file) {
+        return new XmlFile(file);
     }
 
-    public void setPath(String path) {
-        this.path = path;
-    }
-
-    public String getConfigXml() {
-        return configXml;
-    }
-
-    public void setConfigXml(String configXml) {
-        this.configXml = configXml;
+    @Override
+    public XmlFile createQueueConfigXmlFile(File file) {
+        return new XmlFile(file);
     }
 }

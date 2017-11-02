@@ -37,35 +37,35 @@ import java.io.StringWriter;
 
 /**
  */
-public class XmlKubernetesBuild extends XmlKubernetesResource {
-    private final NonNamespaceOperation<Build, BuildList, DoneableBuild, Resource<Build, DoneableBuild>> buildClient;
+public class XmlKubernetesRun extends XmlKubernetesResource {
+    private final NonNamespaceOperation<Run, RunList, DoneableRun, Resource<Run, DoneableRun>> runClient;
     private final String namespace;
 
-    public XmlKubernetesBuild(XStream xs, File file, NonNamespaceOperation<Build, BuildList, DoneableBuild, Resource<Build, DoneableBuild>> buildClient, String namespace) {
+    public XmlKubernetesRun(XStream xs, File file, NonNamespaceOperation<Run, RunList, DoneableRun, Resource<Run, DoneableRun>> runClient, String namespace) {
         super(xs, file);
-        this.buildClient = buildClient;
+        this.runClient = runClient;
         this.namespace = namespace;
     }
 
     @Override
     public boolean exists() {
-        Build build = getPipeline();
-        return build != null;
+        Run run = getPipeline();
+        return run != null;
     }
 
-    protected Build getPipeline() {
-        return buildClient.withName(getName()).get();
+    protected Run getPipeline() {
+        return runClient.withName(getName()).get();
     }
 
 
     @Override
     protected BufferedInputStream createInputStream() throws IOException {
-        Build build = getPipeline();
-        if (build == null) {
-            throw new FileNotFoundException("Build resource not found in namespace " + namespace + " with name " + getName());
+        Run run = getPipeline();
+        if (run == null) {
+            throw new FileNotFoundException("Run resource not found in namespace " + namespace + " with name " + getName());
         }
         String configXml = null;
-        BuildSpec spec = build.getSpec();
+        RunSpec spec = run.getSpec();
         if (spec != null) {
             configXml = spec.getConfigXml();
         }
@@ -77,7 +77,7 @@ public class XmlKubernetesBuild extends XmlKubernetesResource {
 
     @Override
     public void delete() {
-        buildClient.withName(getName()).delete();
+        runClient.withName(getName()).delete();
     }
 
     @Override
@@ -93,16 +93,16 @@ public class XmlKubernetesBuild extends XmlKubernetesResource {
         w.close();
         String xml = w.toString();
 
-        Build build = new Build();
+        Run run = new Run();
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(getName());
         metadata.setNamespace(namespace);
-        build.setMetadata(metadata);
-        BuildSpec spec = new BuildSpec();
+        run.setMetadata(metadata);
+        RunSpec spec = new RunSpec();
         spec.setConfigXml(xml);
         spec.setPath(getPath());
-        build.setSpec(spec);
+        run.setSpec(spec);
 
-        buildClient.createOrReplace(build);
+        runClient.createOrReplace(run);
     }
 }

@@ -23,31 +23,7 @@
  */
 package hudson.kubernetes;
 
-import io.fabric8.kubernetes.client.CustomResource;
+import io.fabric8.kubernetes.client.CustomResourceList;
 
-/**
- */
-public class Build extends CustomResource {
-    private BuildSpec spec;
-
-    public Build() {
-        setKind("Build");
-    }
-
-    @Override
-    public String toString() {
-        return "Build{" +
-                "apiVersion='" + getApiVersion() + '\'' +
-                ", metadata=" + getMetadata() +
-                ", spec=" + spec +
-                '}';
-    }
-
-    public BuildSpec getSpec() {
-        return spec;
-    }
-
-    public void setSpec(BuildSpec spec) {
-        this.spec = spec;
-    }
+public class PipelineList extends CustomResourceList<Pipeline> {
 }

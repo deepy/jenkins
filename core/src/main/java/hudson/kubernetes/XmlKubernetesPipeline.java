@@ -37,11 +37,11 @@ import java.io.StringWriter;
 
 /**
  */
-public class XmlKubernetesBuildConfig extends XmlKubernetesResource {
-    private final NonNamespaceOperation<BuildConfig, BuildConfigList, DoneableBuildConfig, Resource<BuildConfig, DoneableBuildConfig>> pipelineClient;
+public class XmlKubernetesPipeline extends XmlKubernetesResource {
+    private final NonNamespaceOperation<Pipeline, PipelineList, DoneablePipeline, Resource<Pipeline, DoneablePipeline>> pipelineClient;
     private final String namespace;
 
-    public XmlKubernetesBuildConfig(XStream xs, File file, NonNamespaceOperation<BuildConfig, BuildConfigList, DoneableBuildConfig, Resource<BuildConfig, DoneableBuildConfig>> pipelineClient, String namespace) {
+    public XmlKubernetesPipeline(XStream xs, File file, NonNamespaceOperation<Pipeline, PipelineList, DoneablePipeline, Resource<Pipeline, DoneablePipeline>> pipelineClient, String namespace) {
         super(xs, file);
         this.pipelineClient = pipelineClient;
         this.namespace = namespace;
@@ -49,23 +49,23 @@ public class XmlKubernetesBuildConfig extends XmlKubernetesResource {
 
     @Override
     public boolean exists() {
-        BuildConfig buildConfig = getPipeline();
-        return buildConfig != null;
+        Pipeline pipeline = getPipeline();
+        return pipeline != null;
     }
 
-    protected BuildConfig getPipeline() {
+    protected Pipeline getPipeline() {
         return pipelineClient.withName(getName()).get();
     }
 
 
     @Override
     protected BufferedInputStream createInputStream() throws IOException {
-        BuildConfig buildConfig = getPipeline();
-        if (buildConfig == null) {
+        Pipeline pipeline = getPipeline();
+        if (pipeline == null) {
             throw new FileNotFoundException("Pipeline resource not found in namespace " + namespace + " with name " + getName());
         }
         String configXml = null;
-        BuildConfigSpec spec = buildConfig.getSpec();
+        PipelineSpec spec = pipeline.getSpec();
         if (spec != null) {
             configXml = spec.getConfigXml();
         }
@@ -93,16 +93,16 @@ public class XmlKubernetesBuildConfig extends XmlKubernetesResource {
         w.close();
         String xml = w.toString();
 
-        BuildConfig buildConfig = new BuildConfig();
+        Pipeline pipeline = new Pipeline();
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(getName());
         metadata.setNamespace(namespace);
-        buildConfig.setMetadata(metadata);
-        BuildConfigSpec spec = new BuildConfigSpec();
+        pipeline.setMetadata(metadata);
+        PipelineSpec spec = new PipelineSpec();
         spec.setConfigXml(xml);
         spec.setPath(getPath());
-        buildConfig.setSpec(spec);
+        pipeline.setSpec(spec);
 
-        pipelineClient.createOrReplace(buildConfig);
+        pipelineClient.createOrReplace(pipeline);
     }
 }

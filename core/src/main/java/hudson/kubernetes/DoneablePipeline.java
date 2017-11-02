@@ -28,8 +28,8 @@ import io.fabric8.kubernetes.client.CustomResourceDoneable;
 
 /**
  */
-public class DoneableBuild extends CustomResourceDoneable<Build> {
-    public DoneableBuild(Build resource, Function function) {
+public class DoneablePipeline extends CustomResourceDoneable<Pipeline> {
+    public DoneablePipeline(Pipeline resource, Function function) {
         super(resource, function);
     }
 }

@@ -23,7 +23,40 @@
  */
 package hudson.kubernetes;
 
-import io.fabric8.kubernetes.client.CustomResourceList;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
 
-public class BuildList extends CustomResourceList<Build> {
+/**
+ */
+@JsonDeserialize(
+    using = JsonDeserializer.None.class
+)
+public class RunSpec implements KubernetesResource {
+    private String path;
+    private String configXml;
+
+    @Override
+    public String toString() {
+        return "RunSpec{" +
+                "path='" + path + '\'' +
+                ", configXml='" + configXml + '\'' +
+                '}';
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public String getConfigXml() {
+        return configXml;
+    }
+
+    public void setConfigXml(String configXml) {
+        this.configXml = configXml;
+    }
 }

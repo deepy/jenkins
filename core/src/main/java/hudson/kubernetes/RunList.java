@@ -23,13 +23,7 @@
  */
 package hudson.kubernetes;
 
-import io.fabric8.kubernetes.api.builder.Function;
-import io.fabric8.kubernetes.client.CustomResourceDoneable;
+import io.fabric8.kubernetes.client.CustomResourceList;
 
-/**
- */
-public class DoneableBuildConfig extends CustomResourceDoneable<BuildConfig> {
-    public DoneableBuildConfig(BuildConfig resource, Function function) {
-        super(resource, function);
-    }
+public class RunList extends CustomResourceList<Run> {
 }

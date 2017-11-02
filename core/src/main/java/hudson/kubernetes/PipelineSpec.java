@@ -23,31 +23,40 @@
  */
 package hudson.kubernetes;
 
-import io.fabric8.kubernetes.client.CustomResource;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
 
 /**
  */
-public class BuildConfig extends CustomResource {
-    private BuildConfigSpec spec;
-
-    public BuildConfig() {
-        setKind("BuildConfig");
-    }
+@JsonDeserialize(
+    using = JsonDeserializer.None.class
+)
+public class PipelineSpec implements KubernetesResource {
+    private String path;
+    private String configXml;
 
     @Override
     public String toString() {
-        return "BuildConfig{" +
-                "apiVersion='" + getApiVersion() + '\'' +
-                ", metadata=" + getMetadata() +
-                ", spec=" + spec +
+        return "PipelineSpec{" +
+                "path='" + path + '\'' +
+                ", configXml='" + configXml + '\'' +
                 '}';
     }
 
-    public BuildConfigSpec getSpec() {
-        return spec;
+    public String getPath() {
+        return path;
     }
 
-    public void setSpec(BuildConfigSpec spec) {
-        this.spec = spec;
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public String getConfigXml() {
+        return configXml;
+    }
+
+    public void setConfigXml(String configXml) {
+        this.configXml = configXml;
     }
 }
