@@ -25,8 +25,8 @@ package hudson.kubernetes;
 
 import com.thoughtworks.xstream.XStream;
 import hudson.XmlFile;
-import hudson.model.TopLevelItem;
 import hudson.XmlFileFactory;
+import hudson.model.TopLevelItem;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -41,6 +41,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  */
@@ -50,7 +52,14 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
     private static NonNamespaceOperation<Run, RunList, DoneableRun, Resource<Run, DoneableRun>> runClient;
 
     public KuberentesXmlFileFactory() {
-        watchResources();
+        // TODO we can probbably do this better to avoid the thread?
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                watchResources();
+            }
+        };
+        new Timer().schedule(task, 2000);
     }
 
     protected static String getNamespace() {
