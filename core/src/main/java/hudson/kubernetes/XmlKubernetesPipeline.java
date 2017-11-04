@@ -24,6 +24,7 @@
 package hudson.kubernetes;
 
 import com.thoughtworks.xstream.XStream;
+import hudson.model.Item;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -101,6 +102,11 @@ public class XmlKubernetesPipeline extends XmlKubernetesResource {
         PipelineSpec spec = new PipelineSpec();
         spec.setConfigXml(xml);
         spec.setPath(getPath());
+        if (o instanceof Item) {
+            Item item = (Item) o;
+            spec.setFullName(item.getFullName());
+            spec.setShortUrl(item.getShortUrl());
+        }
         pipeline.setSpec(spec);
 
         pipelineClient.createOrReplace(pipeline);

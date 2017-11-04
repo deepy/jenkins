@@ -30,7 +30,7 @@ import io.fabric8.kubernetes.client.CustomResource;
 /**
  */
 @JsonDeserialize(
-    using = JsonDeserializer.None.class
+        using = JsonDeserializer.None.class
 )
 public class Pipeline extends CustomResource {
     private PipelineSpec spec;

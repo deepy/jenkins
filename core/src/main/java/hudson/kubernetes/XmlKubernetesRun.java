@@ -24,6 +24,8 @@
 package hudson.kubernetes;
 
 import com.thoughtworks.xstream.XStream;
+import hudson.model.Item;
+import hudson.model.Job;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -101,6 +103,16 @@ public class XmlKubernetesRun extends XmlKubernetesResource {
         RunSpec spec = new RunSpec();
         spec.setConfigXml(xml);
         spec.setPath(getPath());
+        if (o instanceof hudson.model.Run) {
+            hudson.model.Run item = (hudson.model.Run) o;
+            Job parent = item.getParent();
+            if (parent != null) {
+                spec.setJobFullName(parent.getFullName());
+            }
+            spec.setNumber(item.getNumber());
+            spec.setFullDisplayName(item.getFullDisplayName());
+            spec.setUrl(item.getUrl());
+        }
         run.setSpec(spec);
 
         runClient.createOrReplace(run);

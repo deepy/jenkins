@@ -125,31 +125,35 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
         RunSpec spec = item.getSpec();
         ObjectMeta metadata = item.getMetadata();
         if (spec != null && metadata != null) {
-            String path = spec.getPath();
-            String configXml = spec.getConfigXml();
-            if (configXml != null) {
-                String name = metadata.getName();
-                Jenkins jenkins = Jenkins.getInstance();
-                List<TopLevelItem> items = jenkins.getItems();
-                boolean found = false;
-                for (TopLevelItem topLevelItem : items) {
-                    if (name.equals(topLevelItem.getName())) {
-                        System.out.println("Updated item " + name + " so reloading");
-                        // TODO find better reload...
-                        try {
-                            jenkins.reload();
-                        } catch (Exception e) {
-                            // TODO
+            int number = spec.getNumber();
+            String jobFullName = spec.getJobFullName();
+            if (number > 0 && jobFullName != null && !jobFullName.isEmpty()) {
+                String fullName = jobFullName + "/" + number;
+                String configXml = spec.getConfigXml();
+                if (configXml != null) {
+                    String name = metadata.getName();
+                    Jenkins jenkins = Jenkins.getInstance();
+                    List<TopLevelItem> items = jenkins.getItems();
+                    boolean found = false;
+                    for (TopLevelItem topLevelItem : items) {
+                        if (name.equals(topLevelItem.getName())) {
+                            System.out.println("Updated item " + name + " so reloading");
+                            // TODO find better reload...
+                            try {
+                                jenkins.reload();
+                            } catch (Exception e) {
+                                // TODO
+                            }
+                            return;
                         }
-                        return;
                     }
-                }
-                if (!found) {
-                    try {
-                        jenkins.createProjectFromXML(name, new ByteArrayInputStream(configXml.getBytes()));
-                    } catch (IOException e) {
-                        System.out.println("Failed to create Item: " + e);
-                        e.printStackTrace();
+                    if (!found) {
+                        try {
+                            jenkins.createProjectFromXML(fullName, new ByteArrayInputStream(configXml.getBytes()));
+                        } catch (IOException e) {
+                            System.out.println("Failed to create Item: " + e);
+                            e.printStackTrace();
+                        }
                     }
                 }
             }
@@ -160,7 +164,7 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
         PipelineSpec spec = item.getSpec();
         ObjectMeta metadata = item.getMetadata();
         if (spec != null && metadata != null) {
-            String path = spec.getPath();
+            String fullName = spec.getFullName();
             String configXml = spec.getConfigXml();
             if (configXml != null) {
                 String name = metadata.getName();
@@ -181,7 +185,7 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
                 }
                 if (!found) {
                     try {
-                        jenkins.createProjectFromXML(name, new ByteArrayInputStream(configXml.getBytes()));
+                        jenkins.createProjectFromXML(fullName, new ByteArrayInputStream(configXml.getBytes()));
                     } catch (IOException e) {
                         System.out.println("Failed to create Item: " + e);
                         e.printStackTrace();

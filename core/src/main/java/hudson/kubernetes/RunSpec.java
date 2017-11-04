@@ -23,6 +23,7 @@
  */
 package hudson.kubernetes;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
@@ -30,18 +31,33 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 /**
  */
 @JsonDeserialize(
-    using = JsonDeserializer.None.class
+        using = JsonDeserializer.None.class
 )
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class RunSpec implements KubernetesResource {
+    private int number;
     private String path;
     private String configXml;
+    private String fullDisplayName;
+    private String url;
+    private String jobFullName;
 
     @Override
     public String toString() {
         return "RunSpec{" +
-                "path='" + path + '\'' +
-                ", configXml='" + configXml + '\'' +
+                "number=" + number +
+                ", fullDisplayName='" + fullDisplayName + '\'' +
+                ", url='" + url + '\'' +
+                ", jobFullName='" + jobFullName + '\'' +
                 '}';
+    }
+
+    public int getNumber() {
+        return number;
+    }
+
+    public void setNumber(int number) {
+        this.number = number;
     }
 
     public String getPath() {
@@ -58,5 +74,29 @@ public class RunSpec implements KubernetesResource {
 
     public void setConfigXml(String configXml) {
         this.configXml = configXml;
+    }
+
+    public String getFullDisplayName() {
+        return fullDisplayName;
+    }
+
+    public void setFullDisplayName(String fullDisplayName) {
+        this.fullDisplayName = fullDisplayName;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getJobFullName() {
+        return jobFullName;
+    }
+
+    public void setJobFullName(String jobFullName) {
+        this.jobFullName = jobFullName;
     }
 }

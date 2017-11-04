@@ -23,6 +23,7 @@
  */
 package hudson.kubernetes;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
@@ -32,9 +33,12 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 @JsonDeserialize(
     using = JsonDeserializer.None.class
 )
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class PipelineSpec implements KubernetesResource {
     private String path;
     private String configXml;
+    private String fullName;
+    private String shortUrl;
 
     @Override
     public String toString() {
@@ -58,5 +62,17 @@ public class PipelineSpec implements KubernetesResource {
 
     public void setConfigXml(String configXml) {
         this.configXml = configXml;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public void setShortUrl(String shortUrl) {
+        this.shortUrl = shortUrl;
     }
 }
