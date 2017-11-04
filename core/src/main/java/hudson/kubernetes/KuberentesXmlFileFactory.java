@@ -30,6 +30,9 @@ import hudson.XmlFileFactory;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.Watch;
+import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import jenkins.model.Jenkins;
@@ -38,8 +41,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  */
@@ -49,14 +50,7 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
     private static NonNamespaceOperation<Run, RunList, DoneableRun, Resource<Run, DoneableRun>> runClient;
 
     public KuberentesXmlFileFactory() {
-
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                pollResources();
-            }
-        };
-        new Timer().scheduleAtFixedRate(task, 2000, 2000);
+        watchResources();
     }
 
     protected static String getNamespace() {
@@ -70,7 +64,7 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
         return namespace;
     }
 
-    protected void pollResources() {
+    protected void watchResources() {
         String ns = getNamespace();
         NonNamespaceOperation<Pipeline, PipelineList, DoneablePipeline, Resource<Pipeline, DoneablePipeline>> pipelineClient = getPipelineClient(ns);
         PipelineList bcList = pipelineClient.list();
@@ -82,8 +76,7 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
                 }
             }
         }
-/*
-        Watch pipelineWatcher = bcs.watch(new Watcher<Pipeline>() {
+        Watch pipelineWatcher = pipelineClient.watch(new Watcher<Pipeline>() {
             @Override
             public void eventReceived(Action action, Pipeline item) {
                 onPipeline(item);
@@ -94,8 +87,6 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
                 // ignore
             }
         });
-        configureObjectMapper(pipelineWatcher);
-*/
 
 
         NonNamespaceOperation<Run, RunList, DoneableRun, Resource<Run, DoneableRun>> runs = getRunClient(ns);
@@ -108,7 +99,6 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
                 }
             }
         }
-/*
         Watch runWatcher = runs.watch(new Watcher<Run>() {
             @Override
             public void eventReceived(Action action, Run item) {
@@ -120,8 +110,6 @@ public class KuberentesXmlFileFactory implements XmlFileFactory {
                 // ignore
             }
         });
-        configureObjectMapper(runWatcher);
-*/
     }
 
     protected void onRun(Run item) {
