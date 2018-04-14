@@ -33,14 +33,13 @@ import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.FeedAdapter;
 import hudson.Util;
-import hudson.XmlFile;
+import hudson.XmlFileStorage;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
 import hudson.model.Descriptor.FormException;
 import hudson.model.listeners.SaveableListener;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
-import hudson.security.Permission;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.FormApply;
@@ -189,7 +188,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
     private synchronized void load() {
         properties.clear();
 
-        XmlFile config = getConfigFile();
+        XmlFileStorage config = getConfigFile();
         try {
             if(config.exists())
                 config.unmarshal(this);
@@ -811,8 +810,8 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
     /**
      * The file we save our configuration.
      */
-    protected final XmlFile getConfigFile() {
-        return new XmlFile(XSTREAM,getConfigFileFor(id));
+    protected final XmlFileStorage getConfigFile() {
+        return new XmlFileStorage(XSTREAM,getConfigFileFor(id));
     }
 
     private static final File getConfigFileFor(String id) {
@@ -876,7 +875,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
     }
 
     private Object writeReplace() {
-        return XmlFile.replaceIfNotAtTopLevel(this, () -> new Replacer(this));
+        return XmlFileStorage.replaceIfNotAtTopLevel(this, () -> new Replacer(this));
     }
     private static class Replacer {
         private final String id;

@@ -24,8 +24,10 @@
 package jenkins.model;
 
 import hudson.BulkChange;
+import hudson.FileStorage;
+import hudson.Storage;
 import hudson.Util;
-import hudson.XmlFile;
+import hudson.XmlFileStorage;
 import hudson.model.Computer;
 import hudson.model.Node;
 import hudson.model.Queue;
@@ -170,7 +172,7 @@ public class Nodes implements Saveable {
         if (node instanceof EphemeralNode) {
             Util.deleteRecursive(new File(getNodesDir(), node.getNodeName()));
         } else {
-            XmlFile xmlFile = new XmlFile(Jenkins.XSTREAM,
+            Storage xmlFile = new XmlFileStorage(Jenkins.XSTREAM,
                     new File(new File(getNodesDir(), node.getNodeName()), "config.xml"));
             xmlFile.write(node);
             SaveableListener.fireOnChange(this, xmlFile);
@@ -285,7 +287,7 @@ public class Nodes implements Saveable {
                 continue;
             }
             existing.add(n.getNodeName());
-            XmlFile xmlFile = new XmlFile(Jenkins.XSTREAM, new File(new File(nodesDir, n.getNodeName()), "config.xml"));
+            Storage xmlFile = new XmlFileStorage(Jenkins.XSTREAM, new File(new File(nodesDir, n.getNodeName()), "config.xml"));
             xmlFile.write(n);
             SaveableListener.fireOnChange(this, xmlFile);
         }
@@ -326,7 +328,7 @@ public class Nodes implements Saveable {
         if (subdirs != null) {
             for (File subdir : subdirs) {
                 try {
-                    XmlFile xmlFile = new XmlFile(Jenkins.XSTREAM, new File(subdir, "config.xml"));
+                    FileStorage xmlFile = new XmlFileStorage(Jenkins.XSTREAM, new File(subdir, "config.xml"));
                     if (xmlFile.exists()) {
                         Node node = (Node) xmlFile.read();
                         newNodes.put(node.getNodeName(), node);

@@ -36,7 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import jenkins.util.SystemProperties;
 import hudson.Util;
-import hudson.XmlFile;
+import hudson.XmlFileStorage;
 import static hudson.init.InitMilestone.PLUGINS_STARTED;
 import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.WARNING;
@@ -842,7 +842,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
      * Loads the data from the disk into this object.
      */
     public synchronized void load() throws IOException {
-        XmlFile file = getConfigFile();
+        XmlFileStorage file = getConfigFile();
         if(file.exists()) {
             try {
                 sites.replaceBy(((PersistedList)file.unmarshal(sites)).toList());
@@ -874,8 +874,8 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
         return new UpdateSite(PREDEFINED_UPDATE_SITE_ID, config.getUpdateCenterUrl() + "update-center.json");
     }
 
-    private XmlFile getConfigFile() {
-        return new XmlFile(XSTREAM,new File(Jenkins.getInstance().root,
+    private XmlFileStorage getConfigFile() {
+        return new XmlFileStorage(XSTREAM,new File(Jenkins.getInstance().root,
                                     UpdateCenter.class.getName()+".xml"));
     }
 
