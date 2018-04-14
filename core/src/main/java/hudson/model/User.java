@@ -43,6 +43,8 @@ import hudson.security.AccessControlled;
 import hudson.security.Permission;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
+import hudson.tasks.UserNameResolver;
+import hudson.tasks.UserProvider;
 import hudson.util.FormApply;
 import hudson.util.FormValidation;
 import hudson.util.RunList;
@@ -158,7 +160,6 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
     private User(String id, String fullName) {
         this.id = id;
         this.fullName = fullName;
-        load();
     }
 
     /**
@@ -182,7 +183,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
         return idStrategy().compare(this.id, that.id);
     }
 
-    /**
+        /**
      * Loads the other data from disk if it's available.
      */
     private synchronized void load() {
@@ -199,7 +200,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
         // remove nulls that have failed to load
         for (Iterator<UserProperty> itr = properties.iterator(); itr.hasNext();) {
             if(itr.next()==null)
-                itr.remove();            
+                itr.remove();
         }
 
         // allocate default instances if needed.
@@ -215,6 +216,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
         for (UserProperty p : properties)
             p.setUser(this);
     }
+
 
     @Exported
     public String getId() {
@@ -410,6 +412,8 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      * <p>
      * This is used to avoid null {@link User} instance.
      */
+    @Deprecated
+    // TODO: move to provider
     public static @Nonnull User getUnknown() {
         return getById(UNKNOWN_USERNAME, true);
     }
@@ -428,7 +432,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      */
     @Deprecated
     public static @Nullable User get(String idOrFullName, boolean create) {
-        return get(idOrFullName, create, Collections.emptyMap());
+        return UserProvider.get(idOrFullName, create, Collections.emptyMap());
     }
 
     /**
@@ -452,106 +456,11 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      *      An existing or created user. May be {@code null} if a user does not exist and
      *      {@code create} is false.
      */
+    @Deprecated
     public static @Nullable User get(String idOrFullName, boolean create, @Nonnull Map context) {
-
-        if(idOrFullName==null)
-            return null;
-
-        // TODO: In many cases the method should receive the canonical ID.
-        // Maybe it makes sense to try AllUsers.byName().get(idkey) before invoking all resolvers and other stuff
-        // oleg-nenashev: FullNameResolver with User.getAll() loading and iteration makes me think it's a good idea.
-
-        String id = CanonicalIdResolver.resolve(idOrFullName, context);
-        // DefaultUserCanonicalIdResolver will always return a non-null id if all other CanonicalIdResolver failed
-        if (id == null) {
-            throw new IllegalStateException("The user id should be always non-null thanks to DefaultUserCanonicalIdResolver");
-        }
-        return getOrCreate(id, idOrFullName, create);
+        return UserProvider.get(idOrFullName, create, context);
     }
 
-    /**
-     * Retrieve a user by its ID, and create a new one if requested.
-     * @return
-     *      An existing or created user. May be {@code null} if a user does not exist and
-     *      {@code create} is false.
-     */
-    private static @Nullable User getOrCreate(@Nonnull String id, @Nonnull String fullName, boolean create) {
-        return getOrCreate(id, fullName, create, getUnsanitizedLegacyConfigFileFor(id));
-    }
-
-    private static @Nullable User getOrCreate(@Nonnull String id, @Nonnull String fullName, boolean create, File unsanitizedLegacyConfigFile) {
-        String idkey = idStrategy().keyFor(id);
-
-        byNameLock.readLock().lock();
-        User u;
-        try {
-            u = AllUsers.byName().get(idkey);
-        } finally {
-            byNameLock.readLock().unlock();
-        }
-        final File configFile = getConfigFileFor(id);
-        if (unsanitizedLegacyConfigFile.exists() && !unsanitizedLegacyConfigFile.equals(configFile)) {
-            File ancestor = unsanitizedLegacyConfigFile.getParentFile();
-            if (!configFile.exists()) {
-                try {
-                    Files.createDirectory(configFile.getParentFile().toPath());
-                    Files.move(unsanitizedLegacyConfigFile.toPath(), configFile.toPath());
-                    LOGGER.log(Level.INFO, "Migrated user record from {0} to {1}", new Object[] {unsanitizedLegacyConfigFile, configFile});
-                } catch (IOException | InvalidPathException e) {
-                    LOGGER.log(
-                            Level.WARNING,
-                            String.format("Failed to migrate user record from %s to %s", unsanitizedLegacyConfigFile, configFile),
-                            e);
-                }
-            }
-
-            // Don't clean up ancestors with other children; the directories should be cleaned up when the last child
-            // is migrated
-            File tmp = ancestor;
-            try {
-                while (!ancestor.equals(getRootDir())) {
-                    try (DirectoryStream<Path> stream = Files.newDirectoryStream(ancestor.toPath())) {
-                        if (!stream.iterator().hasNext()) {
-                            tmp = ancestor;
-                            ancestor = tmp.getParentFile();
-                            Files.deleteIfExists(tmp.toPath());
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            } catch (IOException | InvalidPathException e) {
-                if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.log(Level.FINE, "Could not delete " + tmp + " when cleaning up legacy user directories", e);
-                }
-            }
-        }
-
-        if (u==null && (create || configFile.exists())) {
-            User tmp = new User(id, fullName);
-            User prev;
-            byNameLock.readLock().lock();
-            try {
-                prev = AllUsers.byName().putIfAbsent(idkey, u = tmp);
-            } finally {
-                byNameLock.readLock().unlock();
-            }
-            if (prev != null) {
-                u = prev; // if some has already put a value in the map, use it
-                if (LOGGER.isLoggable(Level.FINE) && !fullName.equals(prev.getFullName())) {
-                    LOGGER.log(Level.FINE, "mismatch on fullName (‘" + fullName + "’ vs. ‘" + prev.getFullName() + "’) for ‘" + id + "’", new Throwable());
-                }
-            } else if (!id.equals(fullName) && !configFile.exists()) {
-                // JENKINS-16332: since the fullName may not be recoverable from the id, and various code may store the id only, we must save the fullName
-                try {
-                    u.save();
-                } catch (IOException x) {
-                    LOGGER.log(Level.WARNING, null, x);
-                }
-            }
-        }
-        return u;
-    }
 
     /**
      * Gets the {@link User} object by its id or full name.
@@ -571,7 +480,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      */
     @Deprecated
     public static @Nonnull User get(String idOrFullName) {
-        return getOrCreateByIdOrFullName(idOrFullName);
+        return UserProvider.get(idOrFullName, true, Collections.emptyMap());
     }
 
     /**
@@ -589,8 +498,9 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      * @return User instance. It will be created on-demand.
      * @since 2.91
      */
+    @Deprecated
     public static @Nonnull User getOrCreateByIdOrFullName(@Nonnull String idOrFullName) {
-        return get(idOrFullName,true, Collections.emptyMap());
+        return UserProvider.get(idOrFullName,true, Collections.emptyMap());
     }
 
 
@@ -599,8 +509,9 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      * if the current user is anonymous.
      * @since 1.172
      */
+    @Deprecated
     public static @CheckForNull User current() {
-        return get(Jenkins.getAuthentication());
+        return UserProvider.current();
     }
 
     /**
@@ -610,13 +521,9 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      * @return a {@link User} object for the supplied {@link Authentication} or {@code null}
      * @since 1.609
      */
+    @Deprecated
     public static @CheckForNull User get(@CheckForNull Authentication a) {
-        if(a == null || a instanceof AnonymousAuthenticationToken)
-            return null;
-
-        // Since we already know this is a name, we can just call getOrCreate with the name directly.
-        String id = a.getName();
-        return getById(id, true);
+        return UserProvider.get(a);
     }
 
     /**
@@ -632,8 +539,9 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      *         and the user does not exist.
      * @since 1.651.2 / 2.3
      */
+    @Deprecated
     public static @Nullable User getById(String id, boolean create) {
-        return getOrCreate(id, id, create);
+        return UserProvider.getById(id, create);
     }
 
     /**
@@ -824,6 +732,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
             throw FormValidation.error(Messages.User_IllegalFullname(fullName));
         }
         if(BulkChange.contains(this))   return;
+        // TODO: refactor
         getConfigFile().write(this);
         SaveableListener.fireOnChange(this, getConfigFile());
     }
@@ -847,6 +756,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      * @throws IOException
      *      if we fail to delete.
      */
+    // TODO: refactor
     public synchronized void delete() throws IOException {
         final IdStrategy strategy = idStrategy();
         byNameLock.readLock().lock();
@@ -1098,7 +1008,9 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
                     File configFile = new File(subdir, "config.xml");
                     if (configFile.exists()) {
                         String name = strategy.idFromFilename(subdir.getName());
-                        getOrCreate(name, /* <init> calls load(), probably clobbering this anyway */name, true, configFile);
+                        // TODO: refactor
+                        // TODO: decide whether to refactor or if it's fine
+                        XmlUserProvider.getOrCreate(name, /* <init> calls load(), probably clobbering this anyway */name, true, configFile);
                     }
                 }
             }
@@ -1116,6 +1028,138 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
         @GuardedBy("User.byNameLock")
         static ConcurrentMap<String,User> byName() {
             return ExtensionList.lookupSingleton(AllUsers.class).byName;
+        }
+
+    }
+
+    @Extension @Symbol("xmlUserProvider")
+    public static class XmlUserProvider extends UserProvider {
+        public @Nullable User resolve(String idOrFullName, boolean create, @Nonnull Map context) {
+
+            if(idOrFullName==null)
+                return null;
+
+            // TODO: In many cases the method should receive the canonical ID.
+            // Maybe it makes sense to try AllUsers.byName().get(idkey) before invoking all resolvers and other stuff
+            // oleg-nenashev: FullNameResolver with User.getAll() loading and iteration makes me think it's a good idea.
+
+            String id = CanonicalIdResolver.resolve(idOrFullName, context);
+            // DefaultUserCanonicalIdResolver will always return a non-null id if all other CanonicalIdResolver failed
+            if (id == null) {
+                throw new IllegalStateException("The user id should be always non-null thanks to DefaultUserCanonicalIdResolver");
+            }
+            return getOrCreate(id, idOrFullName, create);
+        }
+
+        @Nullable
+        public User resolve(@CheckForNull Authentication a) {
+            if(a == null || a instanceof AnonymousAuthenticationToken)
+                return null;
+
+            // Since we already know this is a name, we can just call getOrCreate with the name directly.
+            String id = a.getName();
+            return resolveById(id, true);
+        }
+
+
+        @Nullable
+        public User resolveById(String id, boolean create) {
+            return getOrCreate(id, id, create);
+        }
+
+        public @CheckForNull User resolveCurrent() {
+            Authentication auth = Jenkins.getAuthentication();
+            if(auth == null || auth instanceof AnonymousAuthenticationToken)
+                return null;
+
+            // Since we already know this is a name, we can just call getOrCreate with the name directly.
+            String id = auth.getName();
+            return resolveById(id, true);
+        }
+
+        /**
+         * Retrieve a user by its ID, and create a new one if requested.
+         * @return
+         *      An existing or created user. May be {@code null} if a user does not exist and
+         *      {@code create} is false.
+         */
+        private static @Nullable User getOrCreate(@Nonnull String id, @Nonnull String fullName, boolean create) {
+            return getOrCreate(id, fullName, create, getUnsanitizedLegacyConfigFileFor(id));
+        }
+
+        private static @Nullable User getOrCreate(@Nonnull String id, @Nonnull String fullName, boolean create, File unsanitizedLegacyConfigFile) {
+            String idkey = idStrategy().keyFor(id);
+
+            byNameLock.readLock().lock();
+            User u;
+            try {
+                u = AllUsers.byName().get(idkey);
+            } finally {
+                byNameLock.readLock().unlock();
+            }
+            final File configFile = getConfigFileFor(id);
+            if (unsanitizedLegacyConfigFile.exists() && !unsanitizedLegacyConfigFile.equals(configFile)) {
+                File ancestor = unsanitizedLegacyConfigFile.getParentFile();
+                if (!configFile.exists()) {
+                    try {
+                        Files.createDirectory(configFile.getParentFile().toPath());
+                        Files.move(unsanitizedLegacyConfigFile.toPath(), configFile.toPath());
+                        LOGGER.log(Level.INFO, "Migrated user record from {0} to {1}", new Object[] {unsanitizedLegacyConfigFile, configFile});
+                    } catch (IOException | InvalidPathException e) {
+                        LOGGER.log(
+                                Level.WARNING,
+                                String.format("Failed to migrate user record from %s to %s", unsanitizedLegacyConfigFile, configFile),
+                                e);
+                    }
+                }
+
+                // Don't clean up ancestors with other children; the directories should be cleaned up when the last child
+                // is migrated
+                File tmp = ancestor;
+                try {
+                    while (!ancestor.equals(getRootDir())) {
+                        try (DirectoryStream<Path> stream = Files.newDirectoryStream(ancestor.toPath())) {
+                            if (!stream.iterator().hasNext()) {
+                                tmp = ancestor;
+                                ancestor = tmp.getParentFile();
+                                Files.deleteIfExists(tmp.toPath());
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                } catch (IOException | InvalidPathException e) {
+                    if (LOGGER.isLoggable(Level.FINE)) {
+                        LOGGER.log(Level.FINE, "Could not delete " + tmp + " when cleaning up legacy user directories", e);
+                    }
+                }
+            }
+
+            if (u==null && (create || configFile.exists())) {
+                User tmp = new User(id, fullName);
+                tmp.load();
+                User prev;
+                byNameLock.readLock().lock();
+                try {
+                    prev = AllUsers.byName().putIfAbsent(idkey, u = tmp);
+                } finally {
+                    byNameLock.readLock().unlock();
+                }
+                if (prev != null) {
+                    u = prev; // if some has already put a value in the map, use it
+                    if (LOGGER.isLoggable(Level.FINE) && !fullName.equals(prev.getFullName())) {
+                        LOGGER.log(Level.FINE, "mismatch on fullName (‘" + fullName + "’ vs. ‘" + prev.getFullName() + "’) for ‘" + id + "’", new Throwable());
+                    }
+                } else if (!id.equals(fullName) && !configFile.exists()) {
+                    // JENKINS-16332: since the fullName may not be recoverable from the id, and various code may store the id only, we must save the fullName
+                    try {
+                        u.save();
+                    } catch (IOException x) {
+                        LOGGER.log(Level.WARNING, null, x);
+                    }
+                }
+            }
+            return u;
         }
 
     }
