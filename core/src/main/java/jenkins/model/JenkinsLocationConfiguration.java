@@ -68,7 +68,7 @@ public class JenkinsLocationConfiguration extends GlobalConfiguration implements
         if(!file.exists()) {
             XStream2 xs = new XStream2();
             xs.addCompatibilityAlias("hudson.tasks.Mailer$DescriptorImpl",JenkinsLocationConfiguration.class);
-            file = new XmlFile(xs,new File(Jenkins.get().getRootDir(),"hudson.tasks.Mailer.xml"));
+            file = Jenkins.getStorage().getXmlFile(xs,new File(Jenkins.get().getRootDir(),"hudson.tasks.Mailer.xml"));
             if (file.exists()) {
                 try {
                     file.unmarshal(this);

@@ -113,7 +113,7 @@ import org.apache.commons.io.IOUtils;
  * @see <a href="https://wiki.jenkins-ci.org/display/JENKINS/Architecture#Architecture-Persistence">Architecture » Persistence</a>
  * @author Kohsuke Kawaguchi
  */
-public final class XmlFile {
+public class XmlFile {
     private final XStream xs;
     private final File file;
     private static final Map<Object, Void> beingWritten = Collections.synchronizedMap(new IdentityHashMap<>());

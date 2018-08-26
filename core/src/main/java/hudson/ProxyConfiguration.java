@@ -213,7 +213,7 @@ public final class ProxyConfiguration extends AbstractDescribableImpl<ProxyConfi
     }
 
     public static XmlFile getXmlFile() {
-        return new XmlFile(XSTREAM, new File(Jenkins.getInstance().getRootDir(), "proxy.xml"));
+        return Jenkins.getStorage().getXmlFile(XSTREAM, new File(Jenkins.getInstance().getRootDir(), "proxy.xml"));
     }
 
     public static ProxyConfiguration load() throws IOException {

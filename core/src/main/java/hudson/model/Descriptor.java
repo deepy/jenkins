@@ -901,7 +901,7 @@ public abstract class Descriptor<T extends Describable<T>> implements Saveable, 
     }
 
     protected XmlFile getConfigFile() {
-        return new XmlFile(new File(Jenkins.getInstance().getRootDir(),getId()+".xml"));
+        return Jenkins.getStorage().getXmlFile(new File(Jenkins.getInstance().getRootDir(),getId()+".xml"));
     }
 
     /**

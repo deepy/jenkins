@@ -170,7 +170,7 @@ public class Nodes implements Saveable {
         if (node instanceof EphemeralNode) {
             Util.deleteRecursive(new File(getNodesDir(), node.getNodeName()));
         } else {
-            XmlFile xmlFile = new XmlFile(Jenkins.XSTREAM,
+            XmlFile xmlFile = Jenkins.getStorage().getXmlFile(Jenkins.XSTREAM,
                     new File(new File(getNodesDir(), node.getNodeName()), "config.xml"));
             xmlFile.write(node);
             SaveableListener.fireOnChange(this, xmlFile);
@@ -285,7 +285,7 @@ public class Nodes implements Saveable {
                 continue;
             }
             existing.add(n.getNodeName());
-            XmlFile xmlFile = new XmlFile(Jenkins.XSTREAM, new File(new File(nodesDir, n.getNodeName()), "config.xml"));
+            XmlFile xmlFile = Jenkins.getStorage().getXmlFile(Jenkins.XSTREAM, new File(new File(nodesDir, n.getNodeName()), "config.xml"));
             xmlFile.write(n);
             SaveableListener.fireOnChange(this, xmlFile);
         }
@@ -326,7 +326,7 @@ public class Nodes implements Saveable {
         if (subdirs != null) {
             for (File subdir : subdirs) {
                 try {
-                    XmlFile xmlFile = new XmlFile(Jenkins.XSTREAM, new File(subdir, "config.xml"));
+                    XmlFile xmlFile = Jenkins.getStorage().getXmlFile(Jenkins.XSTREAM, new File(subdir, "config.xml"));
                     if (xmlFile.exists()) {
                         Node node = (Node) xmlFile.read();
                         newNodes.put(node.getNodeName(), node);

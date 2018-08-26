@@ -230,6 +230,7 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.WebApp;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
+import org.kohsuke.stapler.export.Property;
 import org.kohsuke.stapler.framework.adjunct.AdjunctManager;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.jelly.JellyClassLoaderTearOff;
@@ -795,6 +796,47 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
         return getInstanceOrNull();
     }
 
+
+    private static transient StorageProvider storageProvider;
+
+
+    private static void initializeStorageProvider() {
+        Class storage;
+        StorageProvider provider;
+        try {
+            LOGGER.warning("Initializing: " + SystemProperties.getString("io.jenkins.storage.primaryXmlFileStorageClass", "jenkins.model.XmlFileFallbackStorageProvider"));
+            storage = Class.forName(SystemProperties.getString("io.jenkins.storage.primaryXmlFileStorageClass", "jenkins.model.XmlFileFallbackStorageProvider"));
+            provider = (StorageProvider) storage.newInstance();
+            if (provider != null && provider.preFlightCheck()) {
+                storageProvider = provider;
+                return;
+            }
+        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+            if (SystemProperties.getBoolean("io.jenkins.storage.allowXmlFileFallback", true)) {
+                try {
+                    storage = Class.forName(SystemProperties.getString("io.jenkins.storage.fallbackXmlFileStorageClass", "jenkins.model.XmlFileFallbackStorageProvider"));
+                    provider = (StorageProvider) storage.newInstance();
+                    if (provider != null && provider.preFlightCheck()) {
+                        storageProvider = provider;
+                        return;
+                    }
+                } catch (ClassNotFoundException | IllegalAccessException | InstantiationException eInner) {
+                    throw new IllegalArgumentException("Unable to initialize primaryXmlFileStorageClass and fallbackXmlFileStorageClass", e);
+                }
+            }
+        }
+    }
+
+    @Nonnull
+    public static StorageProvider getStorage() {
+        if (storageProvider != null) {
+            return storageProvider;
+        }
+            // new FallbackStorageProvider()
+
+        throw new RuntimeException("No storage provider set!");
+    }
+
     /**
      * Secret key generated once and used for a long time, beyond
      * container start/stop. Persisted outside <tt>config.xml</tt> to avoid
@@ -903,6 +945,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
             // initialization consists of ...
             executeReactor( is,
                     pluginManager.initTasks(is),    // loading and preparing plugins
+                    loadStorage(),
                     loadTasks(),                    // load jobs
                     InitMilestone.ordering()        // forced ordering among key milestones
             );
@@ -2956,7 +2999,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
      * The file we save our configuration.
      */
     private XmlFile getConfigFile() {
-        return new XmlFile(XSTREAM, new File(root,"config.xml"));
+        return Jenkins.getStorage().getXmlFile(XSTREAM, new File(root,"config.xml"));
     }
 
     public int getNumExecutors() {
@@ -3085,6 +3128,19 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
                 throw new InvalidBuildsDir(newBuildsDirValue +  " does not exist and probably cannot be created");
             }
         }
+    }
+
+    private synchronized TaskBuilder loadStorage() {
+        TaskGraphBuilder g = new TaskGraphBuilder();
+//        g.requires(EXTENSIONS_AUGMENTED).add("Initializing storage", new Executable() {
+        g.requires(STARTED).attains(PLUGINS_LISTED).add("Initializing storage", new Executable() {
+            @Override
+            public void run(Reactor reactor) throws Exception {
+                Jenkins.initializeStorageProvider();
+            }
+        });
+
+        return g;
     }
 
     private synchronized TaskBuilder loadTasks() throws IOException {

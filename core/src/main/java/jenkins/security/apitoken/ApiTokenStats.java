@@ -28,6 +28,8 @@ import hudson.Util;
 import hudson.XmlFile;
 import hudson.model.Saveable;
 import hudson.model.listeners.SaveableListener;
+import jenkins.model.Jenkins;
+
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -201,7 +203,7 @@ public class ApiTokenStats implements Saveable {
     }
     
     protected static XmlFile getConfigFile(File parent) {
-        return new XmlFile(new File(parent, "apiTokenStats.xml"));
+        return Jenkins.getStorage().getXmlFile(new File(parent, "apiTokenStats.xml"));
     }
     
     public static class SingleTokenStats {

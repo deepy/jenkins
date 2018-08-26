@@ -875,7 +875,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
     }
 
     private XmlFile getConfigFile() {
-        return new XmlFile(XSTREAM,new File(Jenkins.getInstance().root,
+        return Jenkins.getStorage().getXmlFile(XSTREAM,new File(Jenkins.getInstance().root,
                                     UpdateCenter.class.getName()+".xml"));
     }
 

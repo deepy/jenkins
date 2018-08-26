@@ -812,7 +812,7 @@ public class User extends AbstractModelObject implements AccessControlled, Descr
      * The file we save our configuration.
      */
     protected final XmlFile getConfigFile() {
-        return new XmlFile(XSTREAM,getConfigFileFor(id));
+        return Jenkins.getStorage().getXmlFile(XSTREAM,getConfigFileFor(id));
     }
 
     private static final File getConfigFileFor(String id) {
