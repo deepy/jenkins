@@ -25,6 +25,7 @@ package jenkins;
 
 import hudson.XmlFile;
 import hudson.util.XStream2;
+import jenkins.model.Jenkins;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.InvalidPathException;
 import java.util.logging.Level;
@@ -89,7 +91,7 @@ public class XmlFilePretender extends XmlFile {
         if (proxy == null) {
             return super.read();
         } else {
-            try (InputStream in = new BufferedInputStream(proxy.readStream())) {
+            try (InputStream in = new BufferedInputStream(proxy.readStream(getRelativePath()))) {
                 return super.getXStream().fromXML(in);
             } catch (RuntimeException | Error e) {
                 throw new IOException("Unable to read "+proxy.toString(), e);
@@ -118,7 +120,7 @@ public class XmlFilePretender extends XmlFile {
 
 
     private Object unmarshal(Object o, boolean nullOut) throws IOException {
-        try (InputStream in = new BufferedInputStream(proxy.readStream())) {
+        try (InputStream in = new BufferedInputStream(proxy.readStream(getRelativePath(getFile())))) {
             if (nullOut) {
                 return ((XStream2) super.getXStream()).unmarshal(XStream2.getDefaultDriver().createReader(in), o, null, true);
             } else {
@@ -132,19 +134,44 @@ public class XmlFilePretender extends XmlFile {
     @Override
     public void write( Object o ) throws IOException {
         if (proxy == null) {
+            LOGGER.info("Writing (plain) "+super.getFile());
             super.write(o);
         } else {
-            proxy.save(o);
+            LOGGER.info("Writing fancy "+super.getFile());
+            StringWriter w = new StringWriter();
+            try {
+                w.write("<?xml version='1.1' encoding='UTF-8'?>\n");
+                super.getXStream().toXML(o, w);
+            } catch(RuntimeException e) {
+                throw new IOException(e);
+            }
+            proxy.save(getRelativePath(), w.toString());
         }
+    }
+
+    private String getRelativePath() {
+        return getRelativePath(getFile());
+    }
+
+    private String getRelativePath(File file) {
+        return Jenkins.get().root.getAbsoluteFile().toURI().relativize(file.getAbsoluteFile().toURI()).toString();
     }
 
     @Override
     public boolean exists() {
-        return super.exists();
+        if (proxy != null) {
+            return proxy.exists(getRelativePath());
+        } else {
+            return super.exists();
+        }
     }
 
     public void delete() {
-        super.delete();
+        if (proxy != null) {
+            proxy.delete(getRelativePath(getFile()));
+        } else {
+            super.delete();
+        }
     }
     
     public void mkdirs() {
@@ -168,7 +195,7 @@ public class XmlFilePretender extends XmlFile {
             return super.readRaw();
         } else {
             try {
-                InputStream fileInputStream = proxy.readStream();
+                InputStream fileInputStream = proxy.readStream(getRelativePath(getFile()));
                 return new InputStreamReader(fileInputStream, sniffEncoding());
             } catch (InvalidPathException e) {
                 throw new IOException(e);

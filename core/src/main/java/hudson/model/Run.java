@@ -2013,7 +2013,7 @@ public abstract class Run <JobT extends Job<JobT,RunT>,RunT extends Run<JobT,Run
     }
 
     private @Nonnull XmlFile getDataFile() {
-        return Jenkins.getStorage().getXmlFile(XSTREAM,new File(getRootDir(),"build.xml"));
+        return Jenkins.getStorage().createRunFile(XSTREAM,new File(getRootDir(),"build.xml"));
     }
 
     private Object writeReplace() {

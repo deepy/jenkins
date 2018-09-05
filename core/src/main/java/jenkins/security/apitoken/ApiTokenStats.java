@@ -203,7 +203,7 @@ public class ApiTokenStats implements Saveable {
     }
     
     protected static XmlFile getConfigFile(File parent) {
-        return Jenkins.getStorage().getXmlFile(new File(parent, "apiTokenStats.xml"));
+        return Jenkins.getStorage().createConfigXmlFile(new File(parent, "apiTokenStats.xml"));
     }
     
     public static class SingleTokenStats {

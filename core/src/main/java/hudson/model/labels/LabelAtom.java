@@ -162,7 +162,7 @@ public class LabelAtom extends Label implements Saveable {
     }
 
     /*package*/ XmlFile getConfigFile() {
-        return Jenkins.getStorage().getXmlFile(XSTREAM, new File(Jenkins.getInstance().root, "labels/"+name+".xml"));
+        return Jenkins.getStorage().createConfigXmlFile(XSTREAM, new File(Jenkins.getInstance().root, "labels/"+name+".xml"));
     }
 
     public void save() throws IOException {

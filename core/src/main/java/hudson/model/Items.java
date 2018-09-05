@@ -377,7 +377,7 @@ public class Items {
      * The file we save our configuration.
      */
     public static XmlFile getConfigFile(File dir) {
-        return Jenkins.getStorage().getXmlFile(XSTREAM,new File(dir,"config.xml"));
+        return Jenkins.getStorage().createItemFile(XSTREAM,new File(dir,"config.xml"));
     }
 
     /**

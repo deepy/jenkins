@@ -1,13 +1,12 @@
 package jenkins.model;
 
 import hudson.XmlFile;
-import jenkins.XmlFilePretender;
 
 import java.io.File;
 
 import com.thoughtworks.xstream.XStream;
 
-public class XmlFileFallbackStorageProvider implements StorageProvider {
+public class LocalXmlFileStorageProvider implements StorageProvider {
 
     @Override
     public XmlFile createItemFile(XStream xStream, File file) {
@@ -45,10 +44,10 @@ public class XmlFileFallbackStorageProvider implements StorageProvider {
     }
 
     private XmlFile getXmlFile(File file) {
-        return new XmlFilePretender(file);
+        return new XmlFile(file);
     }
 
     private XmlFile getXmlFile(XStream xs, File file) {
-        return new XmlFilePretender(xs, file);
+        return new XmlFile(xs, file);
     }
 }

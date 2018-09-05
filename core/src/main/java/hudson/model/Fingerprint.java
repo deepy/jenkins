@@ -1334,7 +1334,7 @@ public class Fingerprint implements ModelObject, Saveable {
      * The file we save our configuration.
      */
     private static @Nonnull XmlFile getConfigFile(@Nonnull File file) {
-        return Jenkins.getStorage().getXmlFile(XSTREAM,file);
+        return Jenkins.getStorage().createConfigXmlFile(file);
     }
 
     /**

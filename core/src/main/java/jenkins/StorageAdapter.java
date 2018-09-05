@@ -3,9 +3,11 @@ package jenkins;
 import java.io.InputStream;
 
 public interface StorageAdapter {
-    void delete();
+    void delete(String o);
 
-    void save(Object o);
+    void save(String path, String data);
 
-    InputStream readStream();
+    InputStream readStream(String path);
+
+    boolean exists(String path);
 }

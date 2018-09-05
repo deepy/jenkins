@@ -831,10 +831,14 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
     public static StorageProvider getStorage() {
         if (storageProvider != null) {
             return storageProvider;
+        } else {
+            storageProvider = new PostgresXmlStorageProvider();
+            storageProvider.preFlightCheck();
+            return storageProvider;
         }
             // new FallbackStorageProvider()
 
-        throw new RuntimeException("No storage provider set!");
+//        throw new RuntimeException("No storage provider set!");
     }
 
     /**
@@ -945,7 +949,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
             // initialization consists of ...
             executeReactor( is,
                     pluginManager.initTasks(is),    // loading and preparing plugins
-                    loadStorage(),
+//                    loadStorage(),
                     loadTasks(),                    // load jobs
                     InitMilestone.ordering()        // forced ordering among key milestones
             );
@@ -2999,7 +3003,8 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
      * The file we save our configuration.
      */
     private XmlFile getConfigFile() {
-        return Jenkins.getStorage().getXmlFile(XSTREAM, new File(root,"config.xml"));
+        return new LocalXmlFileStorageProvider().createConfigXmlFile(XSTREAM, new File(root,"config.xml"));
+//        return Jenkins.getStorage().createConfigXmlFile(XSTREAM, new File(root,"config.xml"));
     }
 
     public int getNumExecutors() {

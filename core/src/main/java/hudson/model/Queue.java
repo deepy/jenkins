@@ -392,9 +392,10 @@ public class Queue extends ResourceController implements Saveable {
                 // discard the queue file now that we are done
                 queueFile.delete();
             } else {
+                //TODO: Nordlund: change this to XmlFile
                 queueFile = getXMLQueueFile();
                 if (queueFile.exists()) {
-                    Object unmarshaledObj = Jenkins.getStorage().getXmlFile(XSTREAM, queueFile).read();
+                    Object unmarshaledObj = Jenkins.getStorage().createConfigXmlFile(XSTREAM, queueFile).read();
                     List items;
 
                     if (unmarshaledObj instanceof State) {
@@ -463,7 +464,7 @@ public class Queue extends ResourceController implements Saveable {
             return;
         }
 
-        XmlFile queueFile = Jenkins.getStorage().getXmlFile(XSTREAM, getXMLQueueFile());
+        XmlFile queueFile = Jenkins.getStorage().createQueueConfigXmlFile(XSTREAM, getXMLQueueFile());
         lock.lock();
         try {
             // write out the queue state we want to save
