@@ -26,10 +26,14 @@ package jenkins;
 import hudson.XmlFile;
 import hudson.util.XStream2;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.InvalidPathException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,6 +49,7 @@ import com.thoughtworks.xstream.io.HierarchicalStreamReader;
  */
 public class XmlFilePretender extends XmlFile {
     private static final Logger LOGGER = Logger.getLogger(XmlFilePretender.class.getName());
+    private StorageAdapter proxy = null;
 
 
     public XmlFilePretender(File file) {
@@ -53,6 +58,16 @@ public class XmlFilePretender extends XmlFile {
 
     public XmlFilePretender(XStream xs, File file) {
         super(xs, file);
+    }
+
+    public XmlFilePretender(StorageAdapter proxy, File file) {
+        super(file);
+        this.proxy = proxy;
+    }
+
+    public XmlFilePretender(StorageAdapter proxy, XStream xs, File file) {
+        super(xs, file);
+        this.proxy = proxy;
     }
 
     public File getFile() {
@@ -71,7 +86,15 @@ public class XmlFilePretender extends XmlFile {
             LOGGER.fine("Reading "+super.getFile());
         }
 
-        return super.read();
+        if (proxy == null) {
+            return super.read();
+        } else {
+            try (InputStream in = new BufferedInputStream(proxy.readStream())) {
+                return super.getXStream().fromXML(in);
+            } catch (RuntimeException | Error e) {
+                throw new IOException("Unable to read "+proxy.toString(), e);
+            }
+        }
     }
 
     /**
@@ -82,7 +105,7 @@ public class XmlFilePretender extends XmlFile {
      *      if the XML representation is completely new.
      */
     public Object unmarshal( Object o ) throws IOException {
-        return super.unmarshal(o);
+        return unmarshal(o, false);
     }
 
     /**
@@ -90,13 +113,32 @@ public class XmlFilePretender extends XmlFile {
      * @since 2.99
      */
     public Object unmarshalNullingOut(Object o) throws IOException {
-        return super.unmarshalNullingOut(o);
+        return unmarshal(o, true);
     }
 
+
+    private Object unmarshal(Object o, boolean nullOut) throws IOException {
+        try (InputStream in = new BufferedInputStream(proxy.readStream())) {
+            if (nullOut) {
+                return ((XStream2) super.getXStream()).unmarshal(XStream2.getDefaultDriver().createReader(in), o, null, true);
+            } else {
+                return super.getXStream().unmarshal(XStream2.getDefaultDriver().createReader(in), o);
+            }
+        } catch (RuntimeException | Error e) {
+            throw new IOException("Unable to read ",e);
+        }
+    }
+
+    @Override
     public void write( Object o ) throws IOException {
-        super.write(o);
+        if (proxy == null) {
+            super.write(o);
+        } else {
+            proxy.save(o);
+        }
     }
 
+    @Override
     public boolean exists() {
         return super.exists();
     }
@@ -122,7 +164,16 @@ public class XmlFilePretender extends XmlFile {
      * @return Reader for the file. should be close externally once read.
      */
     public Reader readRaw() throws IOException {
-        return super.readRaw();
+        if (proxy == null) {
+            return super.readRaw();
+        } else {
+            try {
+                InputStream fileInputStream = proxy.readStream();
+                return new InputStreamReader(fileInputStream, sniffEncoding());
+            } catch (InvalidPathException e) {
+                throw new IOException(e);
+            }
+        }
     }
 
     /**
