@@ -44,10 +44,11 @@ import com.thoughtworks.xstream.converters.DataHolder;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 
 /**
- * Backwards compatibility, pretends to represents an XML data file that Jenkins uses as a data file.
+ * Backwards compatibility, pretends to represents an XML data file that Jenkins uses as a data file but
+ * make external requests whenever data is requested.
  *
  * @see <a href="https://wiki.jenkins-ci.org/display/JENKINS/Architecture#Architecture-Persistence">Architecture » Persistence</a>
- * @author Kohsuke Kawaguchi
+ * @author Alex Nordlund
  */
 public class XmlFilePretender extends XmlFile {
     private static final Logger LOGGER = Logger.getLogger(XmlFilePretender.class.getName());

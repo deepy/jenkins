@@ -831,14 +831,9 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
     public static StorageProvider getStorage() {
         if (storageProvider != null) {
             return storageProvider;
-        } else {
-            storageProvider = new PostgresXmlStorageProvider();
-            storageProvider.preFlightCheck();
-            return storageProvider;
         }
-            // new FallbackStorageProvider()
-
-//        throw new RuntimeException("No storage provider set!");
+        
+        throw new RuntimeException("No storage provider set!");
     }
 
     /**
@@ -929,6 +924,8 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
                 // this indicates that there's no need to rewrite secrets on disk
                 new FileBoolean(new File(root,"secret.key.not-so-secret")).on();
             }
+
+            initializeStorageProvider();
 
             try {
                 proxy = ProxyConfiguration.load();
