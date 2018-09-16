@@ -24,15 +24,17 @@
 package hudson;
 
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.XStreamException;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamDriver;
+import com.thoughtworks.xstream.io.xml.Xpp3Driver;
 import hudson.diagnosis.OldDataMonitor;
+import hudson.kubernetes.KuberentesXmlFileFactory;
 import hudson.model.Descriptor;
 import hudson.util.AtomicFileWriter;
 import hudson.util.XStream2;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
+import org.apache.commons.io.IOUtils;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.Locator;
@@ -48,25 +50,26 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Serializable;
-import java.io.Writer;
 import java.io.StringWriter;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.io.IOUtils;
 
 /**
  * Represents an XML data file that Jenkins uses as a data file.
- *
- *
+ * <p>
+ * <p>
  * <h2>Evolving data format</h2>
  * <p>
  * Changing data format requires a particular care so that users with
  * the old data format can migrate to the newer data format smoothly.
- *
+ * <p>
  * <p>
  * Adding a field is the easiest. When you read an old XML that does
  * not have any data, the newly added field is left to the VM-default
@@ -74,7 +77,7 @@ import org.apache.commons.io.IOUtils;
  * {@link #read()} &mdash; which is the majority), or to the value initialized by the
  * constructor (if the object is created via <tt>new</tt> and then its
  * value filled by XStream, such as {@link #unmarshal(Object)}.)
- *
+ * <p>
  * <p>
  * Removing a field requires that you actually leave the field with
  * <tt>transient</tt> keyword. When you read the old XML, XStream
@@ -82,7 +85,7 @@ import org.apache.commons.io.IOUtils;
  * the field will no longer will be written back to XML.
  * (It might be possible to tweak XStream so that we can simply
  * remove fields from the class. Any help appreciated.)
- *
+ * <p>
  * <p>
  * Changing the data structure is usually a combination of the two
  * above. You'd leave the old data store with <tt>transient</tt>,
@@ -94,38 +97,97 @@ import org.apache.commons.io.IOUtils;
  * that into the new data structure, so that the next <tt>save</tt> operation
  * will write the new data (otherwise you'll end up losing the data, because
  * old fields will be never written back.)
- *
+ * <p>
  * <p>
  * You may also want to call {@link OldDataMonitor#report(UnmarshallingContext, String)}.
  * This can be done within a nested class {@code ConverterImpl} extending {@link hudson.util.XStream2.PassthruConverter}
  * in an override of {@link hudson.util.XStream2.PassthruConverter#callback}.
- *
+ * <p>
  * <p>
  * In some limited cases (specifically when the class is the root object
  * to be read from XML, such as {@link Descriptor}), it is possible
  * to completely and drastically change the data format. See
  * {@link Descriptor#load()} for more about this technique.
- *
+ * <p>
  * <p>
  * There's a few other possibilities, such as implementing a custom
  * {@link Converter} for XStream, or {@link XStream#alias(String, Class) registering an alias}.
  *
- * @see <a href="https://wiki.jenkins-ci.org/display/JENKINS/Architecture#Architecture-Persistence">Architecture » Persistence</a>
  * @author Kohsuke Kawaguchi
+ * @see <a href="https://wiki.jenkins-ci.org/display/JENKINS/Architecture#Architecture-Persistence">Architecture » Persistence</a>
  */
 public class XmlFile {
-    private final XStream xs;
-    private final File file;
     private static final Map<Object, Void> beingWritten = Collections.synchronizedMap(new IdentityHashMap<>());
     private static final ThreadLocal<File> writing = new ThreadLocal<>();
+    /**
+     * {@link XStream} instance is supposed to be thread-safe.
+     */
+    private static final XStream DEFAULT_XSTREAM = new XStream2();
+    private static final Logger LOGGER = Logger.getLogger(XmlFile.class.getName());
+    private static final SAXParserFactory JAXP = SAXParserFactory.newInstance();
+    private static final Xpp3Driver DEFAULT_DRIVER = new Xpp3Driver();
+    protected static boolean useKubernetes = true;
+    protected static XmlFileFactory xmlFileFactory;
+
+    static {
+        JAXP.setNamespaceAware(true);
+    }
+
+    private final XStream xs;
+    private final File file;
 
     public XmlFile(File file) {
-        this(DEFAULT_XSTREAM,file);
+        this(DEFAULT_XSTREAM, file);
     }
 
     public XmlFile(XStream xs, File file) {
         this.xs = xs;
         this.file = file;
+    }
+
+    /**
+     * Provides an XStream replacement for an object unless a call to {@link #write} is currently in progress.
+     * As per JENKINS-45892 this may be used by any class which expects to be written at top level to an XML file
+     * but which cannot safely be serialized as a nested object (for example, because it expects some {@code onLoad} hook):
+     * implement a {@code writeReplace} method delegating to this method.
+     * The replacement need not be {@link Serializable} since it is only necessary for use from XStream.
+     *
+     * @param o           an object ({@code this} from {@code writeReplace})
+     * @param replacement a supplier of a safely serializable replacement object with a {@code readResolve} method
+     * @return {@code o}, if {@link #write} is being called on it, else the replacement
+     * @since 2.74
+     */
+    public static Object replaceIfNotAtTopLevel(Object o, Supplier<Object> replacement) {
+        File currentlyWriting = writing.get();
+        if (beingWritten.containsKey(o) || currentlyWriting == null) {
+            return o;
+        } else {
+            LOGGER.log(Level.WARNING, "JENKINS-45892: reference to " + o + " being saved from unexpected " + currentlyWriting, new IllegalStateException());
+            return replacement.get();
+        }
+    }
+
+    public static XmlFile createItemFile(XStream xstream, File file) {
+        return getXmlFileFactory().createItemFile(xstream, file);
+    }
+
+    public static XmlFile createBuildFile(XStream xstream, File file) {
+        return getXmlFileFactory().createRunFile(xstream, file);
+    }
+
+    public static XmlFile createConfigXmlFile(File file) {
+        return getXmlFileFactory().createConfigXmlFile(file);
+    }
+
+    public static XmlFile createQueueConfigXmlFile(File file) {
+        return getXmlFileFactory().createQueueConfigXmlFile(file);
+    }
+
+    public static XmlFileFactory getXmlFileFactory() {
+        if (xmlFileFactory == null) {
+            xmlFileFactory = useKubernetes ? new KuberentesXmlFileFactory() : new LocalXmlFileFactory();
+        }
+        return xmlFileFactory;
     }
 
     public File getFile() {
@@ -141,21 +203,20 @@ public class XmlFile {
      */
     public Object read() throws IOException {
         if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.fine("Reading "+file);
+            LOGGER.fine("Reading " + file);
         }
-        try (InputStream in = new BufferedInputStream(Files.newInputStream(file.toPath()))) {
+        try (InputStream in = createInputStream()) {
             return xs.fromXML(in);
-        } catch (RuntimeException | Error e) {
-            throw new IOException("Unable to read "+file,e);
+        } catch (XStreamException | Error | InvalidPathException e) {
+            throw new IOException("Unable to read " + file, e);
         }
     }
 
     /**
      * Loads the contents of this file into an existing object.
      *
-     * @return
-     *      The unmarshalled object. Usually the same as <tt>o</tt>, but would be different
-     *      if the XML representation is completely new.
+     * @return The unmarshalled object. Usually the same as <tt>o</tt>, but would be different
+     * if the XML representation is completely new.
      */
     public Object unmarshal( Object o ) throws IOException {
         return unmarshal(o, false);
@@ -182,7 +243,11 @@ public class XmlFile {
         }
     }
 
-    public void write( Object o ) throws IOException {
+    protected BufferedInputStream createInputStream() throws IOException {
+        return new BufferedInputStream(Files.newInputStream(file.toPath()));
+    }
+
+    public void write(Object o) throws IOException {
         mkdirs();
         AtomicFileWriter w = new AtomicFileWriter(file);
         try {
@@ -203,27 +268,6 @@ public class XmlFile {
         }
     }
 
-    /**
-     * Provides an XStream replacement for an object unless a call to {@link #write} is currently in progress.
-     * As per JENKINS-45892 this may be used by any class which expects to be written at top level to an XML file
-     * but which cannot safely be serialized as a nested object (for example, because it expects some {@code onLoad} hook):
-     * implement a {@code writeReplace} method delegating to this method.
-     * The replacement need not be {@link Serializable} since it is only necessary for use from XStream.
-     * @param o an object ({@code this} from {@code writeReplace})
-     * @param replacement a supplier of a safely serializable replacement object with a {@code readResolve} method
-     * @return {@code o}, if {@link #write} is being called on it, else the replacement
-     * @since 2.74
-     */
-    public static Object replaceIfNotAtTopLevel(Object o, Supplier<Object> replacement) {
-        File currentlyWriting = writing.get();
-        if (beingWritten.containsKey(o) || currentlyWriting == null) {
-            return o;
-        } else {
-            LOGGER.log(Level.WARNING, "JENKINS-45892: reference to " + o + " being saved from unexpected " + currentlyWriting, new IllegalStateException());
-            return replacement.get();
-        }
-    }
-
     public boolean exists() {
         return file.exists();
     }
@@ -231,7 +275,7 @@ public class XmlFile {
     public void delete() {
         file.delete();
     }
-    
+
     public void mkdirs() {
         file.getParentFile().mkdirs();
     }
@@ -245,8 +289,9 @@ public class XmlFile {
      * Opens a {@link Reader} that loads XML.
      * This method uses {@link #sniffEncoding() the right encoding},
      * not just the system default encoding.
-     * @throws IOException Encoding issues
+     *
      * @return Reader for the file. should be close externally once read.
+     * @throws IOException Encoding issues
      */
     public Reader readRaw() throws IOException {
         try {
@@ -286,14 +331,13 @@ public class XmlFile {
     /**
      * Parses the beginning of the file and determines the encoding.
      *
-     * @throws IOException
-     *      if failed to detect encoding.
-     * @return
-     *      always non-null.
+     * @return always non-null.
+     * @throws IOException if failed to detect encoding.
      */
     public String sniffEncoding() throws IOException {
         class Eureka extends SAXException {
             final String encoding;
+
             public Eureka(String encoding) {
                 this.encoding = encoding;
             }
@@ -302,8 +346,9 @@ public class XmlFile {
         try (InputStream in = Files.newInputStream(file.toPath())) {
             InputSource input = new InputSource(file.toURI().toASCIIString());
             input.setByteStream(in);
-            JAXP.newSAXParser().parse(input,new DefaultHandler() {
+            JAXP.newSAXParser().parse(input, new DefaultHandler() {
                 private Locator loc;
+
                 @Override
                 public void setDocumentLocator(Locator locator) {
                     this.loc = locator;
@@ -322,11 +367,11 @@ public class XmlFile {
                 }
 
                 private void attempt() throws Eureka {
-                    if(loc==null)   return;
+                    if (loc == null) return;
                     if (loc instanceof Locator2) {
                         Locator2 loc2 = (Locator2) loc;
                         String e = loc2.getEncoding();
-                        if(e!=null)
+                        if (e != null)
                             throw new Eureka(e);
                     }
                 }
@@ -334,7 +379,7 @@ public class XmlFile {
             // can't reach here
             throw new AssertionError();
         } catch (Eureka e) {
-            if(e.encoding!=null)
+            if (e.encoding != null)
                 return e.encoding;
             // the environment can contain old version of Xerces and others that do not support Locator2
             // in such a case, assume UTF-8 rather than fail, since Jenkins internally always write XML in UTF-8
@@ -346,21 +391,5 @@ public class XmlFile {
         } catch (ParserConfigurationException e) {
             throw new AssertionError(e);    // impossible
         }
-    }
-
-    /**
-     * {@link XStream} instance is supposed to be thread-safe.
-     */
-
-    private static final Logger LOGGER = Logger.getLogger(XmlFile.class.getName());
-
-    private static final SAXParserFactory JAXP = SAXParserFactory.newInstance();
-
-    private static final HierarchicalStreamDriver DEFAULT_DRIVER = XStream2.getDefaultDriver();
-
-    private static final XStream DEFAULT_XSTREAM = new XStream2(DEFAULT_DRIVER);
-
-    static {
-        JAXP.setNamespaceAware(true);
     }
 }

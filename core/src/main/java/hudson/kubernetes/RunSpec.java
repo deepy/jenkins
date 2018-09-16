@@ -1,0 +1,102 @@
+/*
+ * The MIT License
+ *
+ * Copyright (c) 2004-2010, Sun Microsystems, Inc., Kohsuke Kawaguchi, Yahoo! Inc., CloudBees, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package hudson.kubernetes;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
+
+/**
+ */
+@JsonDeserialize(
+        using = JsonDeserializer.None.class
+)
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+public class RunSpec implements KubernetesResource {
+    private int number;
+    private String path;
+    private String configXml;
+    private String fullDisplayName;
+    private String url;
+    private String jobFullName;
+
+    @Override
+    public String toString() {
+        return "RunSpec{" +
+                "number=" + number +
+                ", fullDisplayName='" + fullDisplayName + '\'' +
+                ", url='" + url + '\'' +
+                ", jobFullName='" + jobFullName + '\'' +
+                '}';
+    }
+
+    public int getNumber() {
+        return number;
+    }
+
+    public void setNumber(int number) {
+        this.number = number;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public String getConfigXml() {
+        return configXml;
+    }
+
+    public void setConfigXml(String configXml) {
+        this.configXml = configXml;
+    }
+
+    public String getFullDisplayName() {
+        return fullDisplayName;
+    }
+
+    public void setFullDisplayName(String fullDisplayName) {
+        this.fullDisplayName = fullDisplayName;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getJobFullName() {
+        return jobFullName;
+    }
+
+    public void setJobFullName(String jobFullName) {
+        this.jobFullName = jobFullName;
+    }
+}
