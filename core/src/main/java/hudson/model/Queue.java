@@ -395,7 +395,7 @@ public class Queue extends ResourceController implements Saveable {
                 //TODO: Nordlund: change this to XmlFile
                 queueFile = getXMLQueueFile();
                 if (queueFile.exists()) {
-                    Object unmarshaledObj = Jenkins.getStorage().createConfigXmlFile(XSTREAM, queueFile).read();
+                    Object unmarshaledObj = Jenkins.getStorage().createQueueConfigXmlFile(XSTREAM, queueFile).read();
                     List items;
 
                     if (unmarshaledObj instanceof State) {

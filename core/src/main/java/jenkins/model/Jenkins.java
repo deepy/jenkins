@@ -3000,8 +3000,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
      * The file we save our configuration.
      */
     private XmlFile getConfigFile() {
-        return new LocalXmlFileStorageProvider().createConfigXmlFile(XSTREAM, new File(root,"config.xml"));
-//        return Jenkins.getStorage().createConfigXmlFile(XSTREAM, new File(root,"config.xml"));
+        return Jenkins.getStorage().createConfigXmlFile(XSTREAM, new File(root,"config.xml"));
     }
 
     public int getNumExecutors() {
